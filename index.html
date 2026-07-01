@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -17,6 +18,80 @@
   <div id="root"></div>
   <script type="text/babel" data-presets="react">
     const { useState, useRef, useEffect, useMemo } = React;
+
+    // ── Supabase client ──────────────────────────────────────────────────────
+    const _supa = window.supabase.createClient(
+      "https://lzwwupgbdcvgynglpxgg.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6d3d1cGdiZGN2Z3luZ2xweGdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4OTg0MTEsImV4cCI6MjA5ODQ3NDQxMX0.tIeBLCgPLzaUTBiApfC3boLY3EEVmUIGoaS8J129Sic"
+    );
+
+    // Upload a file to Supabase Storage and return its public URL
+    async function uploadPhoto(recipeId, dataUrl) {
+      const blob = await (await fetch(dataUrl)).blob();
+      const ext  = "jpg";
+      const path = `${recipeId}/${Date.now()}.${ext}`;
+      const { error } = await _supa.storage.from("recipe-photos").upload(path, blob, { contentType: "image/jpeg", upsert: true });
+      if (error) throw error;
+      const { data } = _supa.storage.from("recipe-photos").getPublicUrl(path);
+      // Save path reference to photos table
+      await _supa.from("photos").insert({ recipe_id: recipeId, storage_path: path });
+      return data.publicUrl;
+    }
+
+    // Fetch the most recent uploaded photo URL for a recipe
+    async function fetchPhoto(recipeId) {
+      const { data } = await _supa
+        .from("photos")
+        .select("storage_path")
+        .eq("recipe_id", recipeId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!data || data.length === 0) return null;
+      const { data: urlData } = _supa.storage.from("recipe-photos").getPublicUrl(data[0].storage_path);
+      return urlData.publicUrl;
+    }
+
+    // Delete the most recent photo for a recipe
+    async function deletePhoto(recipeId) {
+      const { data } = await _supa
+        .from("photos")
+        .select("id, storage_path")
+        .eq("recipe_id", recipeId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (!data || data.length === 0) return;
+      await _supa.storage.from("recipe-photos").remove([data[0].storage_path]);
+      await _supa.from("photos").delete().eq("id", data[0].id);
+    }
+
+    // Likes: get count and check if this browser already liked
+    async function fetchLikes(recipeId) {
+      const { count } = await _supa
+        .from("likes")
+        .select("*", { count: "exact", head: true })
+        .eq("recipe_id", recipeId);
+      return count || 0;
+    }
+
+    async function addLike(recipeId) {
+      await _supa.from("likes").insert({ recipe_id: recipeId });
+    }
+
+    // Comments: fetch all for a recipe
+    async function fetchComments(recipeId) {
+      const { data } = await _supa
+        .from("comments")
+        .select("*")
+        .eq("recipe_id", recipeId)
+        .order("created_at", { ascending: true });
+      return data || [];
+    }
+
+    async function addComment(recipeId, author, body) {
+      await _supa.from("comments").insert({ recipe_id: recipeId, author, body });
+    }
+    // ── End Supabase helpers ─────────────────────────────────────────────────
+
 
 
 // Inline TopoJSON-to-GeoJSON decoder (replaces topojson-client which isn't available in the artifact sandbox)
@@ -6482,24 +6557,124 @@ function StarRating({ rating, onRate }) {
   );
 }
 
+
+function LikesAndComments({ recipeId }) {
+  const [likes, setLikes] = React.useState(0);
+  const [liked, setLiked] = React.useState(false);
+  const [comments, setComments] = React.useState([]);
+  const [author, setAuthor] = React.useState("");
+  const [body, setBody] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [showForm, setShowForm] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchLikes(recipeId).then(setLikes);
+    fetchComments(recipeId).then(setComments);
+    const wasLiked = localStorage.getItem("liked_" + recipeId);
+    if (wasLiked) setLiked(true);
+  }, [recipeId]);
+
+  const handleLike = async () => {
+    if (liked) return;
+    await addLike(recipeId);
+    setLikes(l => l + 1);
+    setLiked(true);
+    localStorage.setItem("liked_" + recipeId, "1");
+  };
+
+  const handleComment = async () => {
+    if (!author.trim() || !body.trim()) return;
+    setSubmitting(true);
+    await addComment(recipeId, author.trim(), body.trim());
+    const updated = await fetchComments(recipeId);
+    setComments(updated);
+    setBody("");
+    setShowForm(false);
+    setSubmitting(false);
+  };
+
+  const fd2 = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  return (
+    <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginTop: 18 }}>
+      <div style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkMute, marginBottom: 14 }}>Community</div>
+
+      {/* Like button */}
+      <button onClick={handleLike} disabled={liked} style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 16px", background: liked ? C.accSoft : C.card, border: `0.5px solid ${liked ? C.acc : C.line}`, borderRadius: 20, cursor: liked ? "default" : "pointer", fontSize: 13, fontWeight: 500, color: liked ? C.acc : C.inkMute, fontFamily: "inherit", marginBottom: 20 }}>
+        <span style={{ fontSize: 16 }}>♥</span>
+        {likes} {likes === 1 ? "like" : "likes"}{liked ? " · You liked this" : ""}
+      </button>
+
+      {/* Comments list */}
+      {comments.length > 0 && (
+        <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          {comments.map(c => (
+            <div key={c.id} style={{ background: C.surface1, border: `0.5px solid ${C.line}`, borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.ink }}>{c.author}</span>
+                <span style={{ fontSize: 11, color: C.inkMute }}>{fd2(c.created_at)}</span>
+              </div>
+              <p style={{ fontSize: 13, color: C.ink, lineHeight: 1.5, margin: 0 }}>{c.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Comment form */}
+      {!showForm
+        ? <button onClick={() => setShowForm(true)} style={{ fontSize: 13, color: C.acc, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0 }}>+ Leave a comment</button>
+        : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Your name" style={{ padding: "8px 10px", border: `0.5px solid ${C.line}`, borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: C.ink, background: C.card }} />
+            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Share your thoughts on this dish…" rows={3} style={{ padding: "8px 10px", border: `0.5px solid ${C.line}`, borderRadius: 6, fontFamily: "inherit", fontSize: 13, color: C.ink, background: C.card, resize: "vertical" }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleComment} disabled={submitting || !author.trim() || !body.trim()} style={{ padding: "8px 16px", background: C.acc, color: "white", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500, fontFamily: "inherit" }}>
+                {submitting ? "Posting…" : "Post comment"}
+              </button>
+              <button onClick={() => setShowForm(false)} style={{ padding: "8px 16px", background: "none", border: `0.5px solid ${C.line}`, borderRadius: 6, cursor: "pointer", fontSize: 13, fontFamily: "inherit", color: C.inkMute }}>Cancel</button>
+            </div>
+          </div>
+        )
+      }
+    </div>
+  );
+}
+
 function CookingLog({ recipe, entry, onUpdate }) {
   const fileRef = useRef(null);
   const toggle = () => onUpdate({ cooked: !entry.cooked, cookedDate: !entry.cooked ? (entry.cookedDate || new Date().toISOString()) : null });
+  const [uploading, setUploading] = React.useState(false);
   const handlePhoto = (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const s = Math.min(1, 1200 / Math.max(img.width, img.height));
         const c = document.createElement("canvas");
         c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-        onUpdate({ photo: c.toDataURL("image/jpeg", 0.85) });
+        const dataUrl = c.toDataURL("image/jpeg", 0.85);
+        // Show preview immediately
+        onUpdate({ photo: dataUrl });
+        // Upload to Supabase in background
+        try {
+          setUploading(true);
+          const url = await uploadPhoto(recipe.id, dataUrl);
+          onUpdate({ photo: url });
+        } catch (err) {
+          console.error("Photo upload failed:", err);
+        } finally {
+          setUploading(false);
+        }
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file); e.target.value = "";
+  };
+  const handleRemovePhoto = async () => {
+    onUpdate({ photo: null });
+    try { await deletePhoto(recipe.id); } catch(e) { console.error(e); }
   };
   return (
     <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginTop: 18 }}>
@@ -6517,8 +6692,8 @@ function CookingLog({ recipe, entry, onUpdate }) {
       )}
       <p style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Your dish</p>
       {entry.photo
-        ? <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", marginBottom: 16 }}><img src={entry.photo} alt="my dish" style={{ width: "100%", display: "block" }} /><button onClick={() => onUpdate({ photo: null })} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.65)", color: "white", border: "none", borderRadius: 4, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button></div>
-        : <button onClick={() => fileRef.current?.click()} style={{ width: "100%", aspectRatio: "16/9", background: C.cardAlt, border: `1px dashed ${C.inkMute}`, borderRadius: 8, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, color: C.inkMute, fontFamily: "inherit", fontSize: 12, marginBottom: 16 }}><span style={{ fontSize: 20 }}>+</span><span>Add a photo of your dish</span></button>
+        ? <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", marginBottom: 16 }}><img src={entry.photo} alt="my dish" style={{ width: "100%", display: "block" }} /><button onClick={handleRemovePhoto} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.65)", color: "white", border: "none", borderRadius: 4, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button></div>
+        : <button onClick={() => fileRef.current?.click()} style={{ width: "100%", aspectRatio: "16/9", background: C.cardAlt, border: `1px dashed ${C.inkMute}`, borderRadius: 8, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, color: C.inkMute, fontFamily: "inherit", fontSize: 12, marginBottom: 16 }}><span style={{ fontSize: 20 }}>+</span><span>{uploading ? "Uploading…" : "Add a photo of your dish"}</span></button>
       }
       <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
       <p style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Notes for next time</p>
@@ -6542,6 +6717,7 @@ function DetailView({ recipe, entry, onBack, onUpdate }) {
         <RecipeSection recipe={recipe} entry={entry} onUpdate={onUpdate} />
       </div>
       <CookingLog recipe={recipe} entry={entry} onUpdate={onUpdate} />
+      <LikesAndComments recipeId={recipe.id} />
     </div>
   );
 }
@@ -6586,6 +6762,15 @@ function App() {
   const pct = Math.round((cookedCount / RECIPES.length) * 100);
   const selected = sel ? RECIPES.find((r) => r.id === sel) : null;
   const update = (updates) => setLog((prev) => ({ ...prev, [sel]: { ...(prev[sel] || {}), ...updates } }));
+
+  // When a recipe is selected, load its Supabase photo if not already set
+  React.useEffect(() => {
+    if (!sel) return;
+    if (log[sel]?.photo) return; // already have one
+    fetchPhoto(sel).then(url => {
+      if (url) update({ photo: url });
+    });
+  }, [sel]);
 
   const filtered = query.trim() === ""
     ? RECIPES
