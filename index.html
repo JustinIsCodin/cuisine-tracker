@@ -90,6 +90,35 @@
     async function addComment(recipeId, author, body) {
       await _supa.from("comments").insert({ recipe_id: recipeId, author, body });
     }
+
+    // Cooking log: fetch all entries as a keyed object
+    async function fetchCookingLog() {
+      const { data } = await _supa.from("cooking_log").select("*");
+      const out = {};
+      (data || []).forEach(r => {
+        out[r.recipe_id] = {
+          cooked: r.cooked,
+          cookedDate: r.cooked_date,
+          rating: r.rating,
+          notes: r.notes,
+          photo: r.photo,
+        };
+      });
+      return out;
+    }
+
+    // Save one recipe's log entry (upsert)
+    async function saveCookingLog(recipeId, entry) {
+      await _supa.from("cooking_log").upsert({
+        recipe_id: recipeId,
+        cooked: entry.cooked ?? false,
+        cooked_date: entry.cookedDate ?? null,
+        rating: entry.rating ?? null,
+        notes: entry.notes ?? null,
+        photo: entry.photo ?? null,
+        updated_at: new Date().toISOString(),
+      });
+    }
     // ── End Supabase helpers ─────────────────────────────────────────────────
 
 
@@ -6702,7 +6731,7 @@ function CookingLog({ recipe, entry, onUpdate }) {
   );
 }
 
-function DetailView({ recipe, entry, onBack, onUpdate }) {
+function DetailView({ recipe, entry, onBack, onUpdate, isAdmin }) {
   return (
     <div data-detail-view="true">
       <button onClick={onBack} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: C.ink2, padding: 0, marginBottom: 14, fontFamily: "inherit" }}>← All countries</button>
@@ -6716,7 +6745,7 @@ function DetailView({ recipe, entry, onBack, onUpdate }) {
         <div style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkMute, marginBottom: 14 }}>Recipe</div>
         <RecipeSection recipe={recipe} entry={entry} onUpdate={onUpdate} />
       </div>
-      <CookingLog recipe={recipe} entry={entry} onUpdate={onUpdate} />
+      {isAdmin && <CookingLog recipe={recipe} entry={entry} onUpdate={onUpdate} />}
       <LikesAndComments recipeId={recipe.id} />
     </div>
   );
@@ -6724,6 +6753,35 @@ function DetailView({ recipe, entry, onBack, onUpdate }) {
 
 function App() {
   const [log, setLog] = useState(INIT_LOG);
+
+  // Load saved cooking log from Supabase on startup (overrides INIT_LOG defaults)
+  useEffect(() => {
+    fetchCookingLog().then(remote => {
+      if (remote && Object.keys(remote).length > 0) {
+        setLog(prev => ({ ...prev, ...remote }));
+      }
+    });
+  }, []);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimer = useRef(null);
+
+  const handleTitleTap = () => {
+    setTapCount(n => {
+      const next = n + 1;
+      clearTimeout(tapTimer.current);
+      if (next >= 5) {
+        const pw = prompt("Admin password:");
+        if (pw === "imcookingoodlookin") {
+          setIsAdmin(true);
+          alert("Admin mode on ✓");
+        }
+        return 0;
+      }
+      tapTimer.current = setTimeout(() => setTapCount(0), 1500);
+      return next;
+    });
+  };
   const [sel, setSel] = useState(null);
   const [mapHighlight, setMapHighlight] = useState(null);
   const mousePos = useRef({ x: -1, y: -1 });
@@ -6761,7 +6819,14 @@ function App() {
   const cookedCount = RECIPES.filter((r) => log[r.id]?.cooked).length;
   const pct = Math.round((cookedCount / RECIPES.length) * 100);
   const selected = sel ? RECIPES.find((r) => r.id === sel) : null;
-  const update = (updates) => setLog((prev) => ({ ...prev, [sel]: { ...(prev[sel] || {}), ...updates } }));
+  const update = (updates) => {
+    setLog((prev) => {
+      const merged = { ...(prev[sel] || {}), ...updates };
+      // Persist to Supabase (fire-and-forget)
+      saveCookingLog(sel, merged).catch(e => console.error("Save failed:", e));
+      return { ...prev, [sel]: merged };
+    });
+  };
 
   // When a recipe is selected, load its Supabase photo if not already set
   React.useEffect(() => {
@@ -6781,7 +6846,7 @@ function App() {
 
   if (selected) return (
     <div style={{ fontFamily: "DM Sans, system-ui, sans-serif", background: C.bg, minHeight: "100vh", padding: 20 }}>
-      <DetailView recipe={selected} entry={log[sel] || {}} onBack={() => setSel(null)} onUpdate={update} />
+      <DetailView recipe={selected} entry={log[sel] || {}} onBack={() => setSel(null)} onUpdate={update} isAdmin={isAdmin} />
     </div>
   );
 
@@ -6793,7 +6858,7 @@ function App() {
         {/* Top row: title + progress */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 700, color: C.ink, letterSpacing: "-0.01em", marginBottom: 1 }}>Cuisine Tracker</h1>
+            <h1 onClick={handleTitleTap} style={{ fontSize: 20, fontWeight: 700, color: C.ink, letterSpacing: "-0.01em", marginBottom: 1, cursor: "default", userSelect: "none" }}>Cuisine Tracker</h1>
             <p style={{ fontSize: 11, color: C.inkMute, fontWeight: 500, letterSpacing: "0.02em" }}>One iconic dish per country · no repeats</p>
           </div>
           <div style={{ textAlign: "center", background: C.card, borderRadius: 16, padding: "8px 18px", boxShadow: "0 1px 3px rgba(26,115,232,0.12)", border: `1px solid ${C.accSoft}`, flexShrink: 0 }}>
