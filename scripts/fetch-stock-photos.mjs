@@ -6,6 +6,9 @@
 //
 //   node scripts/fetch-stock-photos.mjs            # do the fetch + patch
 //   node scripts/fetch-stock-photos.mjs --dry-run   # report matches only, don't edit recipes.js
+//
+// Coverage as of the last run: 173 of 206 dishes have a photo; the rest have
+// no confident free-licensed match and fall back to the flag+name card look.
 
 import { readFileSync, writeFileSync } from "fs";
 import { fileURLToPath, pathToFileURL } from "url";
