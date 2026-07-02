@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { RECIPES } from "./data/recipes.js";
-import { INIT_LOG } from "./data/initLog.js";
 import { CONTINENTS, CONTINENT_ORDER } from "./data/continents.js";
 import { AREA_KM2 } from "./data/areas.js";
 import { C } from "./lib/theme.js";
@@ -12,14 +11,12 @@ import { DishImage } from "./components/DishImage.jsx";
 import { StarFill } from "./components/StarRating.jsx";
 
 export function App() {
-  const [log, setLog] = useState(INIT_LOG);
+  const [log, setLog] = useState({});
 
-  // Load saved cooking log from Supabase on startup (overrides INIT_LOG defaults)
+  // Load the cooking log from Supabase on startup — it's the only source of truth.
   useEffect(() => {
     fetchCookingLog().then(remote => {
-      if (remote && Object.keys(remote).length > 0) {
-        setLog(prev => ({ ...prev, ...remote }));
-      }
+      if (remote) setLog(remote);
     });
   }, []);
   const [isAdmin, setIsAdmin] = useState(false);
