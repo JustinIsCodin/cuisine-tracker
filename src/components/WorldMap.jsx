@@ -61,7 +61,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
     <div style={{ position: "relative", background: "#DBEAFE", overflow: "hidden" }}>
       <svg viewBox={viewBox} style={{ width: "100%", maxHeight: "48vh", height: "auto", display: "block" }}>
         {/* Base layer: all countries filled, thin borders */}
-        {features.map(f => {
+        {features.map((f, i) => {
           const id = String(f.id);
           const isCooked = cookedSet.has(id);
           const recipe = numericByRecipe[id];
@@ -69,7 +69,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
           const fill = isCooked ? C.cok : (isPlanned ? C.planned : C.land);
           return (
             <path
-              key={id}
+              key={`${id}-${i}`}
               d={path(f)}
               fill={fill}
               stroke={fill}
@@ -83,7 +83,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
           );
         })}
         {/* Outline layer: planned/cooked countries drawn on top with full border — no fill so shared edges aren't doubled */}
-        {features.map(f => {
+        {features.map((f, i) => {
           const id = String(f.id);
           const isCooked = cookedSet.has(id);
           const recipe = numericByRecipe[id];
@@ -92,7 +92,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
           const stroke = isHighlighted ? "#FACC15" : (isCooked ? "#1E8A45" : "#9CA3AF");
           return (
             <path
-              key={`outline-${id}`}
+              key={`outline-${id}-${i}`}
               d={path(f)}
               fill={isHighlighted ? "rgba(250,204,21,0.25)" : "none"}
               stroke={stroke}
