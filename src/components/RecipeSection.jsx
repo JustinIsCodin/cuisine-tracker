@@ -114,7 +114,7 @@ export function RecipeSection({ recipe, entry, onUpdate }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 22 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <h3 style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 16, fontWeight: 500, color: C.ink }}>Shopping list{doubled ? " (2×)" : ""}</h3>
+            <h3 style={{ fontFamily: "inherit", fontSize: 16, fontWeight: 500, color: C.ink }}>Shopping list{doubled ? " (2×)" : ""}</h3>
             {checkedCount > 0 && (
               <button onClick={clearChecked} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.acc, fontWeight: 500, padding: 0, fontFamily: "inherit" }}>Clear ({checkedCount})</button>
             )}
@@ -147,7 +147,7 @@ export function RecipeSection({ recipe, entry, onUpdate }) {
         <div>
           {recipe.miseEnPlace && recipe.miseEnPlace.length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 16, fontWeight: 500, color: C.ink, marginBottom: 4 }}>Mise en place</h3>
+              <h3 style={{ fontFamily: "inherit", fontSize: 16, fontWeight: 500, color: C.ink, marginBottom: 4 }}>Mise en place</h3>
               <p style={{ fontSize: 11.5, color: C.inkMute, marginBottom: 10 }}>Knock these out ahead of time so cooking is just assembly. Bracketed items go into the dish at the same moment — prep them straight into one bowl.</p>
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {(() => {
@@ -201,7 +201,7 @@ export function RecipeSection({ recipe, entry, onUpdate }) {
               </ul>
             </div>
           )}
-          <h3 style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 16, fontWeight: 500, color: C.ink, marginBottom: 10 }}>Method</h3>
+          <h3 style={{ fontFamily: "inherit", fontSize: 16, fontWeight: 500, color: C.ink, marginBottom: 10 }}>Method</h3>
           <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {recipe.steps.map((step, i) => {
               const isObj = typeof step === "object" && step !== null;
@@ -217,7 +217,7 @@ export function RecipeSection({ recipe, entry, onUpdate }) {
               });
               return (
                 <li key={i} style={{ position: "relative", padding: "9px 0 9px 32px", borderBottom: i < recipe.steps.length - 1 ? `0.5px solid ${C.line}` : "none", fontSize: 13, lineHeight: 1.6, color: C.ink }}>
-                  <span style={{ position: "absolute", left: 0, top: 9, fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.acc }}>{i + 1}</span>
+                  <span style={{ position: "absolute", left: 0, top: 9, fontFamily: "inherit", fontSize: 15, fontWeight: 500, color: C.acc }}>{i + 1}</span>
                   {isObj && step.title && (
                     <span style={{ fontWeight: 600, display: "block", marginBottom: 2, color: C.ink }}>{step.title}</span>
                   )}

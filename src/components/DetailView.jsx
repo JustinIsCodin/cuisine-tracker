@@ -13,7 +13,7 @@ export function DetailView({ recipe, entry, onBack, onUpdate, isAdmin }) {
         <DishImage recipe={recipe} photo={entry?.photo} />
       </div>
       <div style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkMute, marginBottom: 7 }}>Week {p2(recipe.week)} · {recipe.country}</div>
-      <div style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 34, fontWeight: 500, letterSpacing: "-0.02em", color: C.ink, lineHeight: 1.0, marginBottom: 12 }}>{recipe.dish}</div>
+      <div style={{ fontFamily: "inherit", fontSize: 34, fontWeight: 800, letterSpacing: "-0.02em", color: C.ink, lineHeight: 1.0, marginBottom: 12 }}>{recipe.dish}</div>
       <p style={{ fontSize: 14, lineHeight: 1.65, color: C.ink2, marginBottom: 24 }}>{recipe.description}</p>
       <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginTop: 18 }}>
         <div style={{ fontSize: 9.5, letterSpacing: "0.16em", textTransform: "uppercase", color: C.inkMute, marginBottom: 14 }}>Recipe</div>

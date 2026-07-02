@@ -50,17 +50,17 @@ export function CookingLog({ recipe, entry, onUpdate }) {
       </button>
       {entry.cooked && (
         <div style={{ marginBottom: 18 }}>
-          <p style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 10 }}>How did it turn out?</p>
+          <p style={{ fontFamily: "inherit", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 10 }}>How did it turn out?</p>
           <StarRating rating={entry.rating ?? 0} onRate={(val) => onUpdate({ rating: val })} />
         </div>
       )}
-      <p style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Your dish</p>
+      <p style={{ fontFamily: "inherit", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Your dish</p>
       {entry.photo
         ? <div style={{ position: "relative", borderRadius: 8, overflow: "hidden", marginBottom: 16 }}><img src={entry.photo} alt="my dish" style={{ width: "100%", display: "block" }} /><button onClick={handleRemovePhoto} style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.65)", color: "white", border: "none", borderRadius: 4, padding: "4px 8px", fontSize: 11, cursor: "pointer" }}>Remove</button></div>
         : <button onClick={() => fileRef.current?.click()} style={{ width: "100%", aspectRatio: "16/9", background: C.cardAlt, border: `1px dashed ${C.inkMute}`, borderRadius: 8, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, color: C.inkMute, fontFamily: "inherit", fontSize: 12, marginBottom: 16 }}><span style={{ fontSize: 20 }}>+</span><span>{uploading ? "Uploading…" : "Add a photo of your dish"}</span></button>
       }
       <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{ display: "none" }} />
-      <p style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Notes for next time</p>
+      <p style={{ fontFamily: "inherit", fontSize: 15, fontWeight: 500, color: C.ink, marginBottom: 9 }}>Notes for next time</p>
       <textarea value={entry.notes || ""} onChange={(e) => onUpdate({ notes: e.target.value })} placeholder="What worked, what to change, timing tweaks…" style={{ width: "100%", minHeight: 100, background: C.card, border: `0.5px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", fontFamily: "inherit", fontSize: 13, lineHeight: 1.6, color: C.ink, resize: "vertical" }} />
     </div>
   );

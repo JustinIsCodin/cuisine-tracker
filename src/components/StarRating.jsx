@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { C } from "../lib/theme.js";
 
-export function StarFill({ fill, size = 26 }) {
+export function StarFill({ fill, size = 26, emptyColor = C.line }) {
   return (
     <span style={{ position: "relative", display: "inline-block", lineHeight: 1, fontSize: size }}>
-      <span style={{ color: C.line }}>★</span>
+      <span style={{ color: emptyColor }}>★</span>
       {fill > 0 && (
         <span style={{ position: "absolute", left: 0, top: 0, overflow: "hidden", width: `${fill * 100}%`, color: "#C4852A", whiteSpace: "nowrap", pointerEvents: "none" }}>★</span>
       )}

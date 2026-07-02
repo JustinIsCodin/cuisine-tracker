@@ -58,7 +58,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
 
   return (
     <div style={{ borderRadius: 10, overflow: "hidden" }}>
-    <div style={{ position: "relative", background: "#DBEAFE", overflow: "hidden" }}>
+    <div style={{ position: "relative", background: C.mapBg, overflow: "hidden" }}>
       <svg viewBox={viewBox} style={{ width: "100%", maxHeight: "48vh", height: "auto", display: "block" }}>
         {/* Base layer: all countries filled, thin borders */}
         {features.map((f, i) => {
@@ -118,7 +118,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
       {/* Hover tooltip */}
       {hover && (
         <div style={{ position: "absolute", top: 14, right: 14, background: C.card, border: `0.5px solid ${C.line}`, borderRadius: 6, padding: "8px 12px", fontSize: 12, color: C.ink, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", pointerEvents: "none" }}>
-            <div style={{ fontFamily: "'Google Sans', Roboto, sans-serif", fontSize: 14, fontWeight: 500 }}>{hover.recipe.dish}</div>
+            <div style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 500 }}>{hover.recipe.dish}</div>
             <div style={{ color: C.ink2, fontSize: 11, marginTop: 2 }}>
               {hover.recipe.country}
               {hover.isCooked && <span style={{ color: C.cok, marginLeft: 6 }}>· cooked ✓</span>}
@@ -127,7 +127,7 @@ export function WorldMap({ recipes, log, onSelect, highlightId }) {
       )}
     </div>
       {/* Legend below the overflow div, always visible */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 32, padding: "8px 16px 16px", fontSize: 13, color: C.ink2, fontWeight: 600, background: "linear-gradient(to bottom, #DBEAFE, rgba(219,234,254,0))", borderRadius: "0 0 10px 10px" }}>
+      <div style={{ display: "flex", justifyContent: "center", gap: 32, padding: "12px 16px 4px", fontSize: 13, color: C.ink2, fontWeight: 600, background: "transparent" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 22, height: 22, background: C.cok, borderRadius: 5, display: "inline-block", flexShrink: 0 }} />
           <span>Cooked</span>
