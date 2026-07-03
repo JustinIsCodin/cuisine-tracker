@@ -6,17 +6,21 @@ on:
   push:
     branches: [main, staging]
 
-permissions:
-  contents: write            # needed to push the built site to the gh-pages branch
-
-# Don't let a main and a staging deploy clobber each other's gh-pages push.
+# Don't let a main and a staging deploy clobber each other's gh-pages push,
+# and serialize the Pages deployment so concurrent runs can't collide (the
+# cause of the old "Deployment failed, try again later" errors).
 concurrency:
   group: pages-deploy
   cancel-in-progress: false
 
 jobs:
+  # 1) Build the site and push it onto the gh-pages branch
+  #    (main -> root, staging -> /staging/, coexisting via keep_files).
   build-deploy:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write          # needed to push the built site to the gh-pages branch
 
     # Selects the matching GitHub Environment so the right Supabase
     # secrets are injected. Create these two environments in
@@ -49,3 +53,39 @@ jobs:
           # keep_files preserves the OTHER environment's folder on each deploy
           # (so a main deploy doesn't wipe /staging/ and vice-versa).
           keep_files: true
+
+  # 2) Serve the just-updated gh-pages branch via the official GitHub Actions
+  #    Pages deployment. This replaces the deprecated "legacy" branch builder
+  #    (build_type must be set to "workflow" in Settings -> Pages).
+  deploy-pages:
+    needs: build-deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write             # deploy to Pages
+      id-token: write          # OIDC token for deploy-pages
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Grab the whole gh-pages tree (root + /staging/) that step 1 just pushed.
+      - uses: actions/checkout@v5
+        with:
+          ref: gh-pages
+          path: site
+
+      # Don't ship the git metadata as part of the served site.
+      - name: Strip git metadata
+        run: rm -rf site/.git
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
