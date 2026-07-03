@@ -73,6 +73,13 @@ export function App() {
   const [query, setQuery] = useState("");
   const [collapsedRegions, setCollapsedRegions] = useState({});
   const toggleRegion = (continent) => setCollapsedRegions(prev => ({ ...prev, [continent]: !prev[continent] }));
+  // "all" | "cooked" | "todo" — filters which dishes show within each continent
+  const [statusFilter, setStatusFilter] = useState("all");
+  const matchesStatus = (r) => {
+    if (statusFilter === "cooked") return !!log[r.id]?.cooked;
+    if (statusFilter === "todo") return !log[r.id]?.cooked;
+    return true;
+  };
   const cookedCount = RECIPES.filter((r) => log[r.id]?.cooked).length;
   const pct = Math.round((cookedCount / RECIPES.length) * 100);
   const selected = sel ? RECIPES.find((r) => r.id === sel) : null;
@@ -100,6 +107,21 @@ export function App() {
         const q = query.toLowerCase();
         return r.country.toLowerCase().includes(q) || r.dish.toLowerCase().includes(q);
       });
+  // Combine search + status filter; this is what actually gets grouped by continent
+  const visible = filtered.filter(matchesStatus);
+
+  // Collapse-all support: which continents are currently shown, and are they all collapsed?
+  const shownContinents = CONTINENT_ORDER.filter(cont => visible.some(r => CONTINENTS[r.id] === cont));
+  const allCollapsed = shownContinents.length > 0 && shownContinents.every(c => collapsedRegions[c]);
+  const setAllCollapsed = (collapse) => {
+    if (collapse) {
+      const next = {};
+      shownContinents.forEach(c => { next[c] = true; });
+      setCollapsedRegions(next);
+    } else {
+      setCollapsedRegions({});
+    }
+  };
 
   if (selected) return (
     <div style={{ fontFamily: FONT, background: C.bg, minHeight: "100vh", padding: 20 }}>
@@ -154,13 +176,36 @@ export function App() {
 
         {/* Bottom: scrollable recipe card grid */}
         <div>
-          {filtered.length === 0 ? (
+          {/* Toolbar: status filter + collapse/expand all */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
+            <div style={{ display: "inline-flex", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, padding: 3, boxShadow: SHADOW.card }}>
+              {[["all", "All"], ["cooked", "Cooked"], ["todo", "To cook"]].map(([val, label]) => {
+                const active = statusFilter === val;
+                return (
+                  <button key={val} onClick={() => setStatusFilter(val)}
+                    style={{ padding: "7px 16px", border: "none", borderRadius: 9, cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, background: active ? C.acc : "transparent", color: active ? C.onPrimary : C.inkMute, transition: "background 0.15s, color 0.15s" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={() => setAllCollapsed(!allCollapsed)} disabled={shownContinents.length === 0}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 14px", background: C.card, border: `1px solid ${C.line}`, borderRadius: 12, cursor: shownContinents.length === 0 ? "default" : "pointer", fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, color: C.ink2, boxShadow: SHADOW.card, opacity: shownContinents.length === 0 ? 0.5 : 1 }}>
+              <span style={{ fontSize: 14, display: "inline-block", transform: allCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▾</span>
+              {allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          </div>
+          {visible.length === 0 ? (
             <div style={{ textAlign: "center", padding: "40px 0", color: C.inkMute, fontSize: 13 }}>
-              No results for <strong style={{ color: C.ink2 }}>"{query}"</strong>
+              {query.trim() !== ""
+                ? <>No results for <strong style={{ color: C.ink2 }}>"{query}"</strong></>
+                : statusFilter === "cooked" ? "No cooked dishes yet."
+                : statusFilter === "todo" ? "Every dish has been cooked 🎉"
+                : "No dishes to show."}
             </div>
           ) : (
-            CONTINENT_ORDER.filter(cont => filtered.some(r => CONTINENTS[r.id] === cont)).map(continent => {
-              const group = filtered
+            CONTINENT_ORDER.filter(cont => visible.some(r => CONTINENTS[r.id] === cont)).map(continent => {
+              const group = visible
                 .filter(r => CONTINENTS[r.id] === continent)
                 .slice()
                 .sort((a, b) => {
@@ -168,8 +213,11 @@ export function App() {
                   if (cookedDiff !== 0) return cookedDiff;
                   return (AREA_KM2[b.id] || 0) - (AREA_KM2[a.id] || 0);
                 });
-              const groupCooked = group.filter(r => log[r.id]?.cooked).length;
-              const groupPct = Math.round((groupCooked / group.length) * 100);
+              // Header progress reflects the continent's true totals (search-scoped),
+              // independent of the status filter applied to the grid below.
+              const continentAll = filtered.filter(r => CONTINENTS[r.id] === continent);
+              const groupCooked = continentAll.filter(r => log[r.id]?.cooked).length;
+              const groupPct = Math.round((groupCooked / continentAll.length) * 100);
               const collapsed = !!collapsedRegions[continent];
               return (
                 <div key={continent} style={{ marginBottom: 40 }}>
