@@ -18,43 +18,24 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 const _supa = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Upload a file to Supabase Storage and return its public URL
+// Upload a file to Supabase Storage and return its public URL.
+// The URL is persisted on the recipe's cooking_log row (via saveCookingLog),
+// which is the single source of truth for "your photo of this dish".
 export async function uploadPhoto(recipeId, dataUrl) {
   const blob = await (await fetch(dataUrl)).blob();
-  const ext  = "jpg";
-  const path = `${recipeId}/${Date.now()}.${ext}`;
+  const path = `${recipeId}/${Date.now()}.jpg`;
   const { error } = await _supa.storage.from("recipe-photos").upload(path, blob, { contentType: "image/jpeg", upsert: true });
   if (error) throw error;
   const { data } = _supa.storage.from("recipe-photos").getPublicUrl(path);
-  // Save path reference to photos table
-  await _supa.from("photos").insert({ recipe_id: recipeId, storage_path: path });
   return data.publicUrl;
 }
 
-// Fetch the most recent uploaded photo URL for a recipe
-export async function fetchPhoto(recipeId) {
-  const { data } = await _supa
-    .from("photos")
-    .select("storage_path")
-    .eq("recipe_id", recipeId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (!data || data.length === 0) return null;
-  const { data: urlData } = _supa.storage.from("recipe-photos").getPublicUrl(data[0].storage_path);
-  return urlData.publicUrl;
-}
-
-// Delete the most recent photo for a recipe
-export async function deletePhoto(recipeId) {
-  const { data } = await _supa
-    .from("photos")
-    .select("id, storage_path")
-    .eq("recipe_id", recipeId)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (!data || data.length === 0) return;
-  await _supa.storage.from("recipe-photos").remove([data[0].storage_path]);
-  await _supa.from("photos").delete().eq("id", data[0].id);
+// Delete an uploaded photo from Storage, given the public URL stored in
+// cooking_log.photo. Data-URL previews (not yet uploaded) have nothing to remove.
+export async function deletePhoto(photoUrl) {
+  if (!photoUrl || !photoUrl.includes("/recipe-photos/")) return;
+  const path = decodeURIComponent(photoUrl.split("/recipe-photos/")[1]);
+  await _supa.storage.from("recipe-photos").remove([path]);
 }
 
 // Likes: get count and check if this browser already liked
