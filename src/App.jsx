@@ -4,7 +4,7 @@ import { CONTINENTS, CONTINENT_ORDER } from "./data/continents.js";
 import { AREA_KM2 } from "./data/areas.js";
 import { C, FONT, SHADOW } from "./lib/theme.js";
 import { fd } from "./lib/format.jsx";
-import { fetchPhoto, fetchCookingLog, saveCookingLog } from "./lib/supabase.js";
+import { fetchCookingLog, saveCookingLog } from "./lib/supabase.js";
 import { WorldMap } from "./components/WorldMap.jsx";
 import { DetailView } from "./components/DetailView.jsx";
 import { DishImage } from "./components/DishImage.jsx";
@@ -28,11 +28,7 @@ export function App() {
       const next = n + 1;
       clearTimeout(tapTimer.current);
       if (next >= 5) {
-        const pw = prompt("Admin password:");
-        if (pw === "imcookingoodlookin") {
-          setIsAdmin(true);
-          alert("Admin mode on ✓");
-        }
+        setIsAdmin(true);
         return 0;
       }
       tapTimer.current = setTimeout(() => setTapCount(0), 1500);
@@ -92,15 +88,6 @@ export function App() {
     });
   };
 
-  // When a recipe is selected, load its Supabase photo if not already set
-  React.useEffect(() => {
-    if (!sel) return;
-    if (log[sel]?.photo) return; // already have one
-    fetchPhoto(sel).then(url => {
-      if (url) update({ photo: url });
-    });
-  }, [sel]);
-
   const filtered = query.trim() === ""
     ? RECIPES
     : RECIPES.filter((r) => {
@@ -123,14 +110,20 @@ export function App() {
     }
   };
 
+  const adminDot = isAdmin && (
+    <div title="Admin mode" style={{ position: "fixed", top: 14, right: 14, width: 11, height: 11, borderRadius: "50%", background: "#FF5A5F", boxShadow: "0 0 0 4px rgba(255,90,95,0.25)", zIndex: 1000 }} />
+  );
+
   if (selected) return (
     <div style={{ fontFamily: FONT, background: C.bg, minHeight: "100vh", padding: 20 }}>
+      {adminDot}
       <DetailView recipe={selected} entry={log[sel] || {}} onBack={() => setSel(null)} onUpdate={update} isAdmin={isAdmin} />
     </div>
   );
 
   return (
     <div style={{ fontFamily: FONT, background: C.bg, minHeight: "100vh", padding: "30px 32px 34px" }}>
+      {adminDot}
 
       {/* Header — title + progress chip */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>

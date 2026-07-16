@@ -37,8 +37,9 @@ export function CookingLog({ recipe, entry, onUpdate }) {
     reader.readAsDataURL(file); e.target.value = "";
   };
   const handleRemovePhoto = async () => {
+    const url = entry.photo;
     onUpdate({ photo: null });
-    try { await deletePhoto(recipe.id); } catch(e) { console.error(e); }
+    try { await deletePhoto(url); } catch(e) { console.error(e); }
   };
   return (
     <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginTop: 18 }}>
